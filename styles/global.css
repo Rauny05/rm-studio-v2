@@ -1534,6 +1534,59 @@ html[data-theme="light"] {
 }
 
 /* ═══════════════════════════════════════════════
+   SIDEBAR V2 — GROUP LABELS + ACTIVE BAR
+   ═══════════════════════════════════════════════ */
+
+.sidebar-logo-text-group {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.sidebar-logo-sub {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--app-text-muted);
+  background: var(--app-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 8px 4px;
+}
+
+.sidebar-group-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--app-text-muted);
+  padding: 10px 10px 4px;
+  white-space: nowrap;
+}
+
+.sidebar-nav-item {
+  position: relative;
+}
+
+.sidebar-active-bar {
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  background: var(--app-text);
+  border-radius: 2px;
+}
+
+/* ═══════════════════════════════════════════════
    KANBAN CARD ENHANCEMENTS
    ═══════════════════════════════════════════════ */
 
