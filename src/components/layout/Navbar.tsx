@@ -1,15 +1,134 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useUIStore } from "@/store/ui-store";
 import { useKanbanStore } from "@/store/kanban-store";
+import { useNotifications, useMarkRead, useMarkAllRead } from "@/hooks/useNotifications";
+import type { Notification, NotificationType } from "@prisma/client";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/projects": "Projects",
   "/settings": "Settings",
+  "/calendar": "Calendar",
+  "/analytics": "Analytics",
+  "/team": "Team",
+  "/deliverables": "Deliverables",
+  "/production": "Production",
+  "/editing": "Editing",
+  "/publishing": "Publishing",
 };
+
+// ── Notification helpers ───────────────────────────────────────────────────────
+
+function relativeTime(date: Date | string): string {
+  const now = Date.now();
+  const then = new Date(date).getTime();
+  const diff = Math.floor((now - then) / 1000);
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function notificationIcon(type: NotificationType) {
+  const icons: Partial<Record<NotificationType, string>> = {
+    DEADLINE_MISSED: "🔴",
+    DEADLINE_APPROACHING: "⏰",
+    PRODUCTION_DELAYED: "⚠️",
+    EDIT_CLAIMED: "✂️",
+    REVIEW_REQUESTED: "👁",
+    UPLOAD_SCHEDULED: "📤",
+    PUBLISH_REMINDER: "📣",
+    COMMENT_ADDED: "💬",
+    REVISION_REQUESTED: "🔄",
+    TASK_ASSIGNED: "📋",
+  };
+  return icons[type] ?? "🔔";
+}
+
+// ── Notification Panel ─────────────────────────────────────────────────────────
+
+function NotificationPanel({ onClose }: { onClose: () => void }) {
+  const { notifications, isLoading } = useNotifications();
+  const markRead = useMarkRead();
+  const markAllRead = useMarkAllRead();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  function handleNotificationClick(n: Notification) {
+    if (!n.read) {
+      markRead.mutate(n.id);
+    }
+    if (n.link) {
+      window.location.href = n.link;
+      onClose();
+    }
+  }
+
+  return (
+    <div className="notif-panel" ref={panelRef} role="dialog" aria-label="Notifications">
+      <div className="notif-panel-header">
+        <span className="notif-panel-title">Notifications</span>
+        <button
+          className="notif-mark-all-btn"
+          onClick={() => markAllRead.mutate()}
+          disabled={markAllRead.isPending || notifications.every((n) => n.read)}
+        >
+          Mark all read
+        </button>
+      </div>
+
+      <div className="notif-list">
+        {isLoading && (
+          <div className="notif-empty">Loading…</div>
+        )}
+        {!isLoading && notifications.length === 0 && (
+          <div className="notif-empty">
+            <span className="notif-empty-icon">🔔</span>
+            <span>No notifications yet</span>
+          </div>
+        )}
+        {!isLoading && notifications.map((n) => (
+          <button
+            key={n.id}
+            className={`notif-item${n.read ? " notif-item--read" : ""}`}
+            onClick={() => handleNotificationClick(n)}
+          >
+            <span className="notif-item-icon" aria-hidden="true">
+              {notificationIcon(n.type)}
+            </span>
+            <div className="notif-item-body">
+              <span className="notif-item-title">{n.title}</span>
+              {n.body && <span className="notif-item-desc">{n.body}</span>}
+              <span className="notif-item-time">{relativeTime(n.createdAt)}</span>
+            </div>
+            {!n.read && <span className="notif-item-dot" aria-label="Unread" />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Global Search ──────────────────────────────────────────────────────────────
 
 function GlobalSearch({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("");
@@ -91,11 +210,24 @@ function GlobalSearch({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ── Navbar ─────────────────────────────────────────────────────────────────────
+
 export function Navbar() {
-  const { toggleSidebar, sidebarCollapsed, darkMode, toggleDarkMode, searchOpen, setSearchOpen } = useUIStore();
+  const {
+    toggleSidebar,
+    sidebarCollapsed,
+    darkMode,
+    toggleDarkMode,
+    searchOpen,
+    setSearchOpen,
+    notificationsOpen,
+    setNotificationsOpen,
+  } = useUIStore();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+
+  const { unreadCount } = useNotifications();
 
   // Resolve dynamic board names
   const { boards } = useKanbanStore();
@@ -109,6 +241,10 @@ export function Navbar() {
     const board = boards.find((b) => b.id === boardId);
     if (board) title = `${board.emoji} ${board.title}`;
   }
+
+  const handleBellClick = useCallback(() => {
+    setNotificationsOpen(!notificationsOpen);
+  }, [notificationsOpen, setNotificationsOpen]);
 
   return (
     <>
@@ -143,6 +279,31 @@ export function Navbar() {
             <span className="navbar-search-placeholder">Search…</span>
             <kbd>⌘K</kbd>
           </button>
+
+          {/* Notification bell */}
+          <div className="notif-bell-wrap">
+            <button
+              className={`navbar-icon-btn notif-bell-btn${notificationsOpen ? " notif-bell-btn--active" : ""}`}
+              onClick={handleBellClick}
+              title="Notifications"
+              aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+              aria-expanded={notificationsOpen}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              {mounted && unreadCount > 0 && (
+                <span className="notif-badge" aria-hidden="true">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {notificationsOpen && (
+              <NotificationPanel onClose={() => setNotificationsOpen(false)} />
+            )}
+          </div>
 
           {/* Dark mode toggle */}
           <button

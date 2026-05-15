@@ -12,6 +12,8 @@ const nextConfig = {
     ],
   },
 
+  turbopack: {},
+
   // Silence Remotion peer dep warnings in build output
   webpack: (config) => {
     config.externals.push("@remotion/bundler");

@@ -3186,3 +3186,472 @@ html[data-theme="light"] {
   margin-bottom: 4px;
 }
 
+/* ── Navbar icon btn (shared) ─────────────────── */
+
+.navbar-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--app-text-secondary);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.navbar-icon-btn:hover {
+  background: var(--app-hover);
+  color: var(--app-text);
+}
+
+/* ── Notification bell ────────────────────────── */
+
+.notif-bell-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.notif-bell-btn {
+  /* inherits .navbar-icon-btn */
+}
+
+.notif-bell-btn--active {
+  background: var(--app-active);
+  color: var(--app-text);
+}
+
+.notif-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 99px;
+  font-size: 9.5px;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+  border: 1.5px solid var(--app-surface);
+  box-sizing: border-box;
+  letter-spacing: 0;
+}
+
+/* ── Notification panel ───────────────────────── */
+
+.notif-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  max-height: 480px;
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+  overflow: hidden;
+  animation: notif-slide-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes notif-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.notif-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--app-border);
+  flex-shrink: 0;
+}
+
+.notif-panel-title {
+  font-size: 13px;
+  font-weight: 580;
+  letter-spacing: -0.01em;
+  color: var(--app-text);
+}
+
+.notif-mark-all-btn {
+  font-size: 12px;
+  font-weight: 480;
+  color: var(--app-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.notif-mark-all-btn:hover:not(:disabled) {
+  color: var(--app-text);
+  background: var(--app-hover);
+}
+
+.notif-mark-all-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.notif-list {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.notif-list::-webkit-scrollbar { width: 4px; }
+.notif-list::-webkit-scrollbar-track { background: transparent; }
+.notif-list::-webkit-scrollbar-thumb {
+  background: var(--app-border);
+  border-radius: 99px;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--app-border-subtle);
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease;
+  position: relative;
+}
+
+.notif-item:hover {
+  background: var(--app-hover);
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item--read {
+  opacity: 0.62;
+}
+
+.notif-item-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  line-height: 1;
+}
+
+.notif-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-item-title {
+  font-size: 12.5px;
+  font-weight: 520;
+  color: var(--app-text);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-item-desc {
+  font-size: 11.5px;
+  color: var(--app-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-item-time {
+  font-size: 10.5px;
+  color: var(--app-text-muted);
+  margin-top: 2px;
+}
+
+.notif-item-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3b82f6;
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.notif-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.notif-empty-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+/* ── Calendar ─────────────────────────────────── */
+
+:root {
+  --cal-chip-high: #ef4444;
+  --cal-chip-high-bg: rgba(239, 68, 68, 0.1);
+  --cal-chip-medium: #f59e0b;
+  --cal-chip-medium-bg: rgba(245, 158, 11, 0.1);
+  --cal-chip-low: #22c55e;
+  --cal-chip-low-bg: rgba(34, 197, 94, 0.1);
+}
+
+.cal-page {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 28px;
+  flex: 1;
+  overflow: auto;
+  gap: 0;
+}
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.cal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cal-month-title {
+  font-size: 20px;
+  font-weight: 620;
+  letter-spacing: -0.03em;
+  color: var(--app-text);
+  margin: 0;
+}
+
+.cal-today-btn {
+  font-size: 12px;
+  font-weight: 480;
+  color: var(--app-text-secondary);
+  background: var(--app-hover);
+  border: 1px solid var(--app-border);
+  border-radius: 7px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.cal-today-btn:hover {
+  background: var(--app-active);
+  color: var(--app-text);
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cal-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--app-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.cal-nav-btn:hover {
+  background: var(--app-active);
+  color: var(--app-text);
+}
+
+.cal-day-labels {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  margin-bottom: 4px;
+}
+
+.cal-day-label {
+  font-size: 10.5px;
+  font-weight: 580;
+  color: var(--app-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  padding: 6px 0;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--app-border);
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.cal-cell {
+  background: var(--app-surface);
+  min-height: 96px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: background 120ms ease;
+}
+
+.cal-cell--empty {
+  background: var(--app-bg);
+}
+
+.cal-cell--has-items {
+  /* Subtle emphasis handled by chips */
+}
+
+.cal-cell-day {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--app-text-muted);
+  line-height: 1;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.cal-cell-day--today {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: var(--app-text);
+  color: var(--app-surface);
+  border-radius: 50%;
+  font-weight: 650;
+  font-size: 11px;
+}
+
+.cal-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cal-chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 520;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 120ms ease, filter 120ms ease;
+  letter-spacing: -0.01em;
+}
+
+.cal-chip:hover {
+  opacity: 0.85;
+  filter: brightness(1.08);
+}
+
+.cal-chip-overflow {
+  font-size: 9.5px;
+  color: var(--app-text-muted);
+  padding: 0 4px;
+  font-weight: 500;
+}
+
+.cal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 0;
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.cal-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--app-border);
+  border-top-color: var(--app-text);
+  animation: dl-spin 0.8s linear infinite;
+}
+
+.cal-error {
+  text-align: center;
+  padding: 48px 0;
+  color: #ef4444;
+  font-size: 13px;
+}
+
+.cal-legend {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-top: 16px;
+}
+
+.cal-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--app-text-muted);
+}
+
+.cal-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+

@@ -1,37 +1,7 @@
-import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 
-// Routes that require authentication
-const PROTECTED_PREFIXES = [
-  "/dashboard",
-  "/deliverables",
-  "/production",
-  "/editing",
-  "/publishing",
-  "/calendar",
-  "/analytics",
-  "/team",
-  "/settings",
-  "/projects",
-  "/cash",
-];
-
-export default auth((req) => {
-  const { nextUrl } = req;
-  const isLoggedIn = !!req.auth;
-
-  const isProtected = PROTECTED_PREFIXES.some((prefix) =>
-    nextUrl.pathname.startsWith(prefix)
-  );
-
-  if (isProtected && !isLoggedIn) {
-    const signInUrl = new URL("/auth/signin", nextUrl.origin);
-    signInUrl.searchParams.set("callbackUrl", nextUrl.pathname);
-    return NextResponse.redirect(signInUrl);
-  }
-
-  return NextResponse.next();
-});
+export const { auth: middleware } = NextAuth(authConfig);
 
 export const config = {
   matcher: [

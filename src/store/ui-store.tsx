@@ -10,6 +10,8 @@ interface UIState {
   toggleDarkMode: () => void;
   searchOpen: boolean;
   setSearchOpen: (v: boolean) => void;
+  notificationsOpen: boolean;
+  setNotificationsOpen: (v: boolean) => void;
 }
 
 const UIContext = createContext<UIState | null>(null);
@@ -18,6 +20,7 @@ export function UIStoreProvider({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // Persist dark mode
   useEffect(() => {
@@ -60,6 +63,8 @@ export function UIStoreProvider({ children }: { children: React.ReactNode }) {
         toggleDarkMode,
         searchOpen,
         setSearchOpen,
+        notificationsOpen,
+        setNotificationsOpen,
       }}
     >
       {children}
