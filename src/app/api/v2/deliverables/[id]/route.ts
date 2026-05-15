@@ -1,113 +1,70 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { auth } from "@/lib/auth";
 
 type Params = { params: Promise<{ id: string }> };
 
-// GET /api/v2/deliverables/[id] — full detail
+// GET /api/v2/deliverables/[id]
 export async function GET(_req: Request, { params }: Params) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const supabase = getSupabaseAdmin();
 
-  const deliverable = await db.deliverable.findUnique({
-    where: { id },
-    include: {
-      assignedTo: { select: { id: true, name: true, image: true, role: true } },
-      production: {
-        include: {
-          assignedTo: { select: { id: true, name: true, image: true } },
-        },
-      },
-      editTask: {
-        include: {
-          claimedBy: { select: { id: true, name: true, image: true } },
-          versions: { orderBy: { createdAt: "desc" } },
-        },
-      },
-      thumbnailTask: true,
-      publishTask: true,
-      versions: { orderBy: { createdAt: "desc" } },
-      revisions: { orderBy: { createdAt: "desc" } },
-      comments: {
-        where: { parentId: null },
-        orderBy: { createdAt: "asc" },
-        include: {
-          user: { select: { id: true, name: true, image: true } },
-          replies: {
-            orderBy: { createdAt: "asc" },
-            include: {
-              user: { select: { id: true, name: true, image: true } },
-            },
-          },
-        },
-      },
-      activities: {
-        orderBy: { createdAt: "desc" },
-        take: 20,
-        include: {
-          user: { select: { id: true, name: true, image: true } },
-        },
-      },
-    },
-  });
+  const { data: deliverable, error } = await supabase
+    .from("Deliverable")
+    .select(`*, ProductionCard(*), EditTask(*), ThumbnailTask(*), PublishTask(*), Comment(*), Revision(*), ActivityLog(*)`)
+    .eq("id", id)
+    .single();
 
-  if (!deliverable) {
+  if (error || !deliverable) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   return NextResponse.json({ deliverable });
 }
 
-// PATCH /api/v2/deliverables/[id] — update fields
+// PATCH /api/v2/deliverables/[id]
 export async function PATCH(req: Request, { params }: Params) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   const body = await req.json();
+  const supabase = getSupabaseAdmin();
 
-  // Whitelist updatable fields
   const allowed = [
-    "title", "brand", "type", "priority", "status",
-    "deadline", "publishDate", "platforms",
-    "script", "notes", "hook", "description",
-    "footageFolder", "thumbnailLink", "exportLink", "publishedUrl",
-    "publishTitle", "publishDesc", "publishTags",
-    "pocName", "pocEmail", "pocCompany",
-    "invoiceNumber", "emailSent", "advance50", "payment100",
+    "title","brand","type","priority","status",
+    "deadline","publishDate","platforms",
+    "script","notes","hook","description",
+    "footageFolder","thumbnailLink","exportLink","publishedUrl",
+    "publishTitle","publishDesc","publishTags",
+    "pocName","pocEmail","pocCompany",
+    "invoiceNumber","emailSent","advance50","payment100",
     "obsidianPath",
-  ] as const;
+  ];
 
-  const updates: Record<string, unknown> = {};
+  const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
   for (const key of allowed) {
-    if (key in body) {
-      if (key === "deadline" || key === "publishDate") {
-        updates[key] = body[key] ? new Date(body[key]) : null;
-      } else {
-        updates[key] = body[key];
-      }
-    }
+    if (key in body) updates[key] = body[key] ?? null;
   }
 
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
-  }
+  const { data: deliverable, error } = await supabase
+    .from("Deliverable")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
 
-  const deliverable = await db.deliverable.update({
-    where: { id },
-    data: updates,
-  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Log the update
-  await db.activityLog.create({
-    data: {
-      deliverableId: id,
-      userId: session.user.id!,
-      action: "deliverable_updated",
-      meta: { fields: Object.keys(updates) },
-    },
+  await supabase.from("ActivityLog").insert({
+    deliverableId: id,
+    userId: session.user.id,
+    action: "deliverable_updated",
+    meta: { fields: Object.keys(updates).filter(k => k !== "updatedAt") },
+    createdAt: new Date().toISOString(),
   });
 
   return NextResponse.json({ deliverable });
@@ -119,7 +76,10 @@ export async function DELETE(_req: Request, { params }: Params) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  await db.deliverable.delete({ where: { id } });
+  const supabase = getSupabaseAdmin();
+
+  const { error } = await supabase.from("Deliverable").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

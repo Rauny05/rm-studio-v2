@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { auth } from "@/lib/auth";
-import type { DeliverableStatus, DeliverableType, Priority } from "@prisma/client";
 
 // GET /api/v2/deliverables — list with filters
 export async function GET(request: Request) {
@@ -11,58 +10,49 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status") as DeliverableStatus | null;
+  const status = searchParams.get("status");
   const brand = searchParams.get("brand");
-  const type = searchParams.get("type") as DeliverableType | null;
-  const priority = searchParams.get("priority") as Priority | null;
+  const type = searchParams.get("type");
+  const priority = searchParams.get("priority");
   const search = searchParams.get("q");
 
-  const deliverables = await db.deliverable.findMany({
-    where: {
-      ...(status && { status }),
-      ...(brand && { brand: { contains: brand, mode: "insensitive" } }),
-      ...(type && { type }),
-      ...(priority && { priority }),
-      ...(search && {
-        OR: [
-          { title: { contains: search, mode: "insensitive" } },
-          { brand: { contains: search, mode: "insensitive" } },
-          { pnNo: { contains: search, mode: "insensitive" } },
-        ],
-      }),
-    },
-    include: {
-      assignedTo: { select: { id: true, name: true, image: true, role: true } },
-      production: {
-        select: {
-          id: true,
-          status: true,
-          shootStartAt: true,
-          totalDuration: true,
-          isDelayed: true,
-          assignedTo: { select: { id: true, name: true, image: true } },
-        },
-      },
-      editTask: {
-        select: {
-          id: true,
-          status: true,
-          revisionCount: true,
-          claimedAt: true,
-          claimedBy: { select: { id: true, name: true, image: true } },
-        },
-      },
-      thumbnailTask: { select: { id: true, status: true, thumbnailUrl: true } },
-      publishTask: { select: { id: true, status: true, scheduledFor: true, publishedAt: true } },
-      _count: { select: { comments: true, revisions: true } },
-    },
-    orderBy: [{ priority: "desc" }, { deadline: "asc" }, { updatedAt: "desc" }],
-  });
+  const supabase = getSupabaseAdmin();
 
-  return NextResponse.json({ deliverables });
+  let query = supabase
+    .from("Deliverable")
+    .select(`
+      id, pnNo, title, brand, type, status, priority, deadline, publishDate,
+      invoiceNumber, emailSent, advance50, payment100, pocName, pocEmail, pocCompany,
+      platforms, hook, notes, footageFolder, thumbnailLink, exportLink, publishedUrl,
+      createdAt, updatedAt,
+      ProductionCard(id, status, shootStartAt, totalDuration, isDelayed),
+      EditTask(id, status, revisionCount, claimedAt),
+      ThumbnailTask(id, status, thumbnailUrl),
+      PublishTask(id, status, scheduledFor, publishedAt)
+    `)
+    .order("createdAt", { ascending: false });
+
+  if (status) query = query.eq("status", status);
+  if (brand) query = query.ilike("brand", `%${brand}%`);
+  if (type) query = query.eq("type", type);
+  if (priority) query = query.eq("priority", priority);
+  if (search) {
+    query = query.or(
+      `title.ilike.%${search}%,brand.ilike.%${search}%,pnNo.ilike.%${search}%,pocName.ilike.%${search}%`
+    );
+  }
+
+  const { data: deliverables, error } = await query;
+
+  if (error) {
+    console.error("Deliverables fetch error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ deliverables: deliverables ?? [] });
 }
 
-// POST /api/v2/deliverables — create deliverable + auto-generate workflow tasks
+// POST /api/v2/deliverables — create
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) {
@@ -71,63 +61,58 @@ export async function POST(req: Request) {
 
   const body = await req.json();
   const {
-    title,
-    brand,
+    title, brand,
     type = "YOUTUBE_VIDEO",
     priority = "MEDIUM",
-    deadline,
-    publishDate,
-    platforms = [],
-    pocName,
-    pocEmail,
-    pocCompany,
-    notes,
-    script,
-    invoiceNumber,
+    deadline, publishDate, platforms = [],
+    pocName, pocEmail, pocCompany,
+    notes, script, invoiceNumber,
   } = body;
 
   if (!title?.trim() || !brand?.trim()) {
     return NextResponse.json({ error: "title and brand are required" }, { status: 400 });
   }
 
-  // Generate pnNo: e.g. "my26-001" (month + year + sequence)
-  const pnNo = await generatePnNo();
+  const supabase = getSupabaseAdmin();
 
-  const deliverable = await db.deliverable.create({
-    data: {
+  // Generate pnNo
+  const pnNo = await generatePnNo(supabase);
+
+  const { data: deliverable, error } = await supabase
+    .from("Deliverable")
+    .insert({
       pnNo,
       title: title.trim(),
       brand: brand.trim(),
-      type,
-      priority,
+      type, priority,
       status: "DRAFT",
       platforms,
-      deadline: deadline ? new Date(deadline) : undefined,
-      publishDate: publishDate ? new Date(publishDate) : undefined,
-      pocName,
-      pocEmail,
-      pocCompany,
-      notes,
-      script,
-      invoiceNumber,
-    },
-    include: {
-      assignedTo: { select: { id: true, name: true, image: true } },
-      production: true,
-      editTask: true,
-      thumbnailTask: true,
-      publishTask: true,
-    },
-  });
+      deadline: deadline ?? null,
+      publishDate: publishDate ?? null,
+      pocName: pocName ?? null,
+      pocEmail: pocEmail ?? null,
+      pocCompany: pocCompany ?? null,
+      notes: notes ?? null,
+      script: script ?? null,
+      invoiceNumber: invoiceNumber ?? null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    })
+    .select()
+    .single();
 
-  // Log creation activity
-  await db.activityLog.create({
-    data: {
-      deliverableId: deliverable.id,
-      userId: session.user.id!,
-      action: "deliverable_created",
-      meta: { pnNo, title, brand, type },
-    },
+  if (error) {
+    console.error("Deliverable create error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Log activity
+  await supabase.from("ActivityLog").insert({
+    deliverableId: deliverable.id,
+    userId: session.user.id,
+    action: "deliverable_created",
+    meta: { pnNo, title, brand, type },
+    createdAt: new Date().toISOString(),
   });
 
   return NextResponse.json({ deliverable }, { status: 201 });
@@ -135,20 +120,17 @@ export async function POST(req: Request) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function generatePnNo(): Promise<string> {
+async function generatePnNo(supabase: ReturnType<typeof getSupabaseAdmin>): Promise<string> {
   const now = new Date();
-  const monthMap = [
-    "ja", "fe", "ma", "ap", "my", "ju",
-    "jl", "au", "se", "oc", "no", "de",
-  ];
+  const monthMap = ["ja","fe","ma","ap","my","ju","jl","au","se","oc","no","de"];
   const prefix = monthMap[now.getMonth()] + String(now.getFullYear()).slice(2);
 
-  // Count existing deliverables this month
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const count = await db.deliverable.count({
-    where: { createdAt: { gte: startOfMonth } },
-  });
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const { count } = await supabase
+    .from("Deliverable")
+    .select("*", { count: "exact", head: true })
+    .gte("createdAt", startOfMonth);
 
-  const seq = String(count + 1).padStart(3, "0");
+  const seq = String((count ?? 0) + 1).padStart(3, "0");
   return `${prefix}-${seq}`;
 }

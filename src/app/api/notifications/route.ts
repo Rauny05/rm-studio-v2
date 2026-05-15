@@ -1,19 +1,21 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { auth } from "@/lib/auth";
 
-// GET /api/notifications — fetch user's last 20 notifications
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const notifications = await db.notification.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
+  const supabase = getSupabaseAdmin();
+  const { data: notifications, error } = await supabase
+    .from("Notification")
+    .select("*")
+    .eq("userId", session.user.id)
+    .order("createdAt", { ascending: false })
+    .limit(20);
 
-  return NextResponse.json({ notifications });
+  if (error) return NextResponse.json({ notifications: [] });
+  return NextResponse.json({ notifications: notifications ?? [] });
 }
