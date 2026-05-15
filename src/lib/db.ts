@@ -13,9 +13,12 @@ function createPrismaClient() {
     throw new Error("DATABASE_URL environment variable is not set");
   }
 
+  // Pooler (port 6543) handles SSL internally; direct connections need ssl override
+  const isPooler = connectionString.includes(":6543");
   const pool = new pg.Pool({
     connectionString,
-    ssl: { rejectUnauthorized: false },
+    ssl: isPooler ? undefined : { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000,
   });
   const adapter = new PrismaPg(pool);
 
